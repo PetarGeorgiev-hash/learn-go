@@ -1,49 +1,49 @@
 package prices
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+
+	"github.com/PetarGeorgiev-hash/learning-go/conversion"
+	"github.com/PetarGeorgiev-hash/learning-go/filemanager"
 )
 
 type TaxIncludedPriceJob struct {
-	TaxRate           float64
-	InputPrices       []float64
-	TaxIncludedPrices map[string]float64
+	IOManager         filemanager.FileManager `json:"-"`
+	TaxRate           float64                 `json:"taxRate"`
+	InputPrices       []float64               `json:"inputPrices"`
+	TaxIncludedPrices map[string]string       `json:"taxIncludedPrices"`
 }
 
-func (job TaxIncludedPriceJob) LoadData() {
-	file, err := os.Open("prices.txt")
+func (job *TaxIncludedPriceJob) LoadData() {
+	lines, err := job.IOManager.ReadLines()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	scanner := bufio.NewScanner(file)
-	lines := []string{}
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	err = scanner.Err()
+	prices, err := conversion.StringToFloat(lines)
 	if err != nil {
 		fmt.Println(err)
-		file.Close()
 		return
 	}
 
-	file.Close()
-
+	job.InputPrices = prices
 }
 
 func (job *TaxIncludedPriceJob) Process() {
-	result := make(map[string]float64, len(job.InputPrices))
+	job.LoadData()
+	result := make(map[string]string, len(job.InputPrices))
 	for _, price := range job.InputPrices {
-		result[fmt.Sprintf("%.2f", price)] = price * (1 + job.TaxRate)
+		taxIncludedPrice := price * (1 + job.TaxRate)
+		result[fmt.Sprintf("%.2f", price)] = fmt.Sprintf("%.2f", taxIncludedPrice)
 	}
-	fmt.Println(result)
+
+	job.TaxIncludedPrices = result
+	job.IOManager.WriteJson(job)
 }
 
-func NewTaxIncludedPriceJob(taxRate float64) *TaxIncludedPriceJob {
+func NewTaxIncludedPriceJob(fm filemanager.FileManager, taxRate float64) *TaxIncludedPriceJob {
 	return &TaxIncludedPriceJob{
+		IOManager:   fm,
 		InputPrices: []float64{10, 20, 30},
 		TaxRate:     taxRate,
 	}
