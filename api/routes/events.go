@@ -23,8 +23,8 @@ func createEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	event.Id = 1
-	event.UserId = 1
+
+	event.UserId = ctx.GetInt64("userId")
 	event.Save()
 	ctx.JSON(http.StatusCreated, event)
 }
@@ -47,11 +47,18 @@ func updateEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, err)
 		return
 	}
-	_, err = models.GetEventById(id)
+	event, err := models.GetEventById(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	currentUser := ctx.GetInt64("userId")
+	if event.UserId != currentUser {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error:": "Can't update event"})
+		return
+	}
+
 	var updateEvent models.Event
 	err = ctx.ShouldBindJSON(&updateEvent)
 	if err != nil {
@@ -75,6 +82,11 @@ func deleteEvent(ctx *gin.Context) {
 	event, err := models.GetEventById(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+	currentUser := ctx.GetInt64("userId")
+	if event.UserId != currentUser {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error:": "Can't delete event"})
 		return
 	}
 	err = event.Delete()
